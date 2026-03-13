@@ -56,15 +56,15 @@ p_time = float(parts[1])
 jobs.append({'id': job_id, 'time': p_time})
 ```
 
-**### 4.2. 정렬 및 스케줄링**
+### 4.2. 정렬 및 스케줄링
 * Timsort: Python 내장 sort()를 사용해 안정적인 내림차순 정렬 수행.
 * Min 탐색: 각 슬롯의 total_time 변수를 비교하여 최적의 할당 위치 결정.
 
-**### 4.3. 예외 조건 검사 (Constraints Validation)**
+### 4.3. 예외 조건 검사 (Constraints Validation)
 병목 현상 방지를 위해 Heavy/Light 작업 제한 로직을 적용합니다.
 * 기준 시간을 초과하면 Heavy, 미만이면 Light로 분류.
 * 특정 슬롯에 Heavy 작업이 몰리지 않도록 할당 전 카운트를 필터링합니다.
 
-**### 4.4. 비교 및 시각화 인터페이스**
+### 4.4. 비교 및 시각화 인터페이스
 * Altair 간트 차트: 작업의 시작(Start)과 종료(End) 시점을 막대 그래프로 시각화.
 * 1:1 매핑 비교: LPT 적용 전/후의 작업 순서를 데이터프레임으로 직접 비교 분석.
