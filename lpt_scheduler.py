@@ -52,22 +52,148 @@ else:
     max_heavy = 999
     max_light = 999
 
-DEFAULT_INPUT = """1, 120
-2, 45
-3, 200
-4, 80
-5, 90
-6, 150
-7, 30
-8, 10
-9, 110
-10, 60
-11, 70
-12, 130
-13, 20
-14, 55
-15, 180
-16, 95"""
+DEFAULT_INPUT = """1, 5.1
+2, 157.4
+3, 189.8
+4, 89.4
+5, 48.5
+6, 1.1
+7, 0.9
+8, 0.4
+9, 0.7
+10, 0.4
+11, 0.4
+12, 0.4
+13, 0.5
+14, 0.3
+15, 0.4
+16, 0.7
+17, 0.3
+18, 0.3
+19, 0.3
+20, 0.3
+21, 0.6
+22, 0.4
+23, 0.3
+24, 0.4
+25, 0.3
+26, 0.6
+27, 0.6
+28, 0.9
+29, 0.4
+30, 1
+31, 0.5
+32, 0.5
+33, 0.5
+34, 0.7
+35, 0.4
+36, 1.6
+37, 0.7
+38, 0.9
+39, 1.1
+40, 0.8
+41, 0.4
+42, 0.4
+43, 0.6
+44, 0.6
+45, 0.8
+46, 0.07
+47, 0.6
+48, 0.5
+49, 1.1
+50, 1
+51, 1.1
+52, 0.6
+53, 1
+54, 0.7
+55, 1
+56, 1.5
+57, 0.6
+58, 0.6
+59, 0.5
+60, 1.2
+61, 0.9
+62, 1
+63, 0.6
+64, 0.7
+65, 1.1
+66, 1.5
+67, 1.6
+68, 1.6
+69, 1.1
+70, 0.9
+71, 1.5
+72, 1.1
+73, 2.1
+74, 0.8
+75, 1.8
+76, 1.7
+77, 0.9
+78, 0.9
+79, 1.8
+80, 1.4
+81, 1.5
+82, 2.3
+83, 2.3
+84, 1.2
+85, 2.2
+86, 17
+87, 1.6
+88, 2.2
+89, 1.3
+90, 0.9
+91, 3.1
+92, 3.7
+93, 17
+94, 1.6
+95, 2.3
+96, 2.2
+97, 2.1
+98, 1.8
+99, 3.1
+100, 1
+101, 2
+102, 2.4
+103, 1.8
+104, 4
+105, 2.6
+106, 5.3
+107, 4
+108, 3.1
+109, 3
+110, 3.4
+111, 6.4
+112, 3.9
+113, 3.8
+114, 2.5
+115, 2.3
+116, 5.1
+117, 4.9
+118, 3.4
+119, 3.7
+120, 4.3
+121, 3.7
+122, 3.9
+123, 4.3
+124, 4.1
+125, 6.2
+126, 5.7
+127, 14.1
+128, 9.8
+129, 11.5
+130, 9.3
+131, 31.2
+132, 10.6
+133, 16.5
+134, 14.2
+135, 20.4
+136, 28.9
+137, 20.2
+138, 27.2
+139, 19
+140, 84
+141, 24.6
+"""
 
 st.subheader("📝 작업 데이터 입력")
 st.caption("형식: [순번, 수행시간] (각 줄에 하나씩 입력)")
@@ -90,51 +216,58 @@ if st.button("🚀 스케줄링 실행", use_container_width=True):
     if jobs:
         # 원래 순서 보존
         jobs_original = list(jobs)
-        # LPT 정렬 (수행시간 내림차순)
+        def allocate_jobs(job_list):
+            alloc_slots = [{'id': i+1, 'total_time': 0.0, 'jobs': [], 'heavy_count': 0, 'light_count': 0} for i in range(num_slots)]
+            unassigned = []
+            for job in job_list:
+                is_heavy = job['time'] >= threshold
+                valid_slots = []
+                for s in alloc_slots:
+                    if enable_constraints:
+                        if is_heavy and s['heavy_count'] >= max_heavy:
+                            continue
+                        if not is_heavy and s['light_count'] >= max_light:
+                            continue
+                    valid_slots.append(s)
+                if not valid_slots:
+                    unassigned.append(job)
+                    continue
+                best_slot = min(valid_slots, key=lambda x: x['total_time'])
+                best_slot['jobs'].append({
+                    'id': job['id'], 
+                    'time': job['time'], 
+                    'type': 'Heavy' if is_heavy else 'Light'
+                })
+                best_slot['total_time'] += job['time']
+                if is_heavy:
+                    best_slot['heavy_count'] += 1
+                else:
+                    best_slot['light_count'] += 1
+            span = max([s['total_time'] for s in alloc_slots], default=0)
+            return span, alloc_slots, unassigned
+
+        # 1. 기존 순서로 할당할 때의 예상 종료 시간 (비교용)
+        original_makespan, _, _ = allocate_jobs(jobs_original)
+
+        # 2. LPT 정렬 (수행시간 내림차순) 적용 후 할당
         jobs.sort(key=lambda x: x['time'], reverse=True)
-        
-        # 슬롯 초기화
-        slots = [{'id': i+1, 'total_time': 0.0, 'jobs': [], 'heavy_count': 0, 'light_count': 0} for i in range(num_slots)]
-        unassigned_jobs = []
+        makespan, slots, unassigned_jobs = allocate_jobs(jobs)
 
-        # 작업 할당  
-        for job in jobs:
-            is_heavy = job['time'] >= threshold
-            
-            # 할당 가능한 슬롯 필터링
-            valid_slots = []
-            for s in slots:
-                if enable_constraints:
-                    if is_heavy and s['heavy_count'] >= max_heavy:
-                        continue
-                    if not is_heavy and s['light_count'] >= max_light:
-                        continue
-                valid_slots.append(s)
-            
-            if not valid_slots:
-                unassigned_jobs.append(job)
-                continue
-            
-            # 가장 빨리 비는 곳(total_time이 가장 작은 슬롯) 찾기
-            best_slot = min(valid_slots, key=lambda x: x['total_time'])
-            
-            # 작업 할당
-            best_slot['jobs'].append({
-                'id': job['id'], 
-                'time': job['time'], 
-                'type': 'Heavy' if is_heavy else 'Light'
-            })
-            best_slot['total_time'] += job['time']
-            if is_heavy:
-                best_slot['heavy_count'] += 1
-            else:
-                best_slot['light_count'] += 1
-
-        # 전체 Makespan 계산
-        makespan = max(s['total_time'] for s in slots)
-        
         st.markdown("---")
-        st.success(f"✅ 스케줄링 성공! **전체 배치 종료 시간(Makespan)은 {makespan}** 입니다.")
+        
+        # 성능 향상 계산
+        improvement_time = original_makespan - makespan
+        improvement_rate = (improvement_time / original_makespan * 100) if original_makespan > 0 else 0
+        
+        st.success("✅ 스케줄링 완료!")
+        st.markdown("### ⏱️ 스케줄링 성능 향상 결과")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(label="기존 종료 시간 (입력 순서)", value=f"{original_makespan:g}")
+        with col2:
+            st.metric(label="LPT 변경 시간 (최적화)", value=f"{makespan:g}", delta=f"{-improvement_time:g}", delta_color="inverse")
+        with col3:
+            st.metric(label="시간 단축률 (향상률)", value=f"{improvement_rate:.1f}%", delta=f"{improvement_rate:.1f}%")
         
         # 시각화 데이터 준비
         chart_data = []
