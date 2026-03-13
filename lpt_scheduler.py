@@ -96,8 +96,8 @@ if st.button("🚀 스케줄링 실행", use_container_width=True):
         # 슬롯 초기화
         slots = [{'id': i+1, 'total_time': 0.0, 'jobs': [], 'heavy_count': 0, 'light_count': 0} for i in range(num_slots)]
         unassigned_jobs = []
-        
-        # 작업 할당
+
+        # 작업 할당  
         for job in jobs:
             is_heavy = job['time'] >= threshold
             
